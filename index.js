@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const port = 3000;
 const fs = require("fs");
-const { ADIMIN } = require("./math");
+const { ADIMIN, DIRECTOR } = require("./math");
 
 let user = "";
 let products = [];
@@ -12,16 +12,53 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.text());
 
-app.use("/products", (req, res, next) => {
-  if (user.email === ADIMIN.email && user.pass === ADIMIN.pass) {
-    console.log("Login secces!");
-    next();
-  } else if (user === "") {
-    res.json({ type: "required login!" });
-  } else {
-    res.json({ type: "email or pass wrong!" });
+// app.use("/products", (req, res, next) => {
+//   if (user.email === ADIMIN.email && user.pass === ADIMIN.pass) {
+//     console.log("Login secces!");
+//     next();
+//   } else if (user === "") {
+//     res.json({ type: "required login!" });
+//   } else {
+//     res.json({ type: "email or pass wrong!" });
+//   }
+// });
+
+
+// const authMiddelware = (req, res, next) => {
+//   if (user.email === ADIMIN.email && user.pass === ADIMIN.pass) {
+//     console.log("Login secces!");
+//     next();
+//   } else if (user === "") {
+//     res.json({ type: "required login!" });
+//   } else {
+//     res.json({ type: "email or pass wrong!" });
+//   }
+// }
+
+const authMiddelware = (position)=>{
+  let currentPosition = null;
+  switch(position){
+    case "ADMIN":{
+      currentPosition = ADIMIN;
+      break;
+    }
+    case "DIRECTOR":{
+      currentPosition = DIRECTOR;
+    }
   }
-});
+  return (req, res, next) => {
+    //currentPosition?.email để tránh trường hợp obj currentPosition = null
+    if (user.email === currentPosition?.email && user.pass === currentPosition?.pass) {
+      console.log("Login secces!");
+      next();
+    } else if (user === "") {
+      res.json({ type: "required login by " + position });
+    } else {
+      res.json({ type: "email or pass wrong by " + position});
+    }
+  }
+}  
+
 
 app.post("/login", (req, res) => {
   const { email, pass } = req.body;
@@ -29,11 +66,11 @@ app.post("/login", (req, res) => {
   res.json({ type: "login!" });
 });
 
-app.get("/products", (req, res) => {
+app.get("/products", authMiddelware("ADMIN") , (req, res) => {
   res.json({ data: products.filter(product => product) });
 });
 
-app.post("/products", (req, res) => {
+app.post("/products", authMiddelware("DIRECTOR") ,(req, res) => {
   const { name, price } = req.body;
   const id = Date.now().toString();
   console.log(id);
@@ -46,7 +83,7 @@ app.post("/products", (req, res) => {
   res.json({ type: "Add product seccec" });
 });
 
-app.delete("/products/:id", (req, res) => {
+app.delete("/products/:id", authMiddelware ,(req, res) => {
   if (products) {
     products.filter(product => product);  // refsh
     const isCheck = products.findIndex((product)=>{
@@ -60,10 +97,9 @@ app.delete("/products/:id", (req, res) => {
     products.filter(product => product);  // refsh
     if (isCheck != -1) {
       
-      delete products[isCheck];
-      
+      //delete products[isCheck];
+      products.splice(isCheck, 1);
       res.json({ type: "delete succes" });
-      return products.filter(product => product);  // refsh
     } else {
       res.json({ type: "delete fail" });
     }
